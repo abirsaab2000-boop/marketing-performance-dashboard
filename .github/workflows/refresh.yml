@@ -1,0 +1,51 @@
+name: Refresh and publish dashboard
+
+on:
+  schedule:
+    # Every Monday 04:00 UTC = 6:00 AM in Beirut (winter time). GitHub may start it a few minutes late.
+    - cron: '0 4 * * 1'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull GoHighLevel data and build data files
+        shell: pwsh
+        env:
+          GHL_TOKEN: ${{ secrets.GHL_TOKEN }}
+          GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+          PAID_START_DATE: ${{ vars.PAID_START_DATE }}
+          GHL_PIPELINE_NAME: ${{ vars.GHL_PIPELINE_NAME }}
+        run: |
+          ./scripts/pull.ps1
+          ./scripts/build.ps1
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
