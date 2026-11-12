@@ -7,6 +7,8 @@ if (Test-Path $envFile) {
 function Get-Setting([string]$name) {
   $v = [Environment]::GetEnvironmentVariable($name)
   if ([string]::IsNullOrWhiteSpace($v)) { $v = $script:dotEnv[$name] }
+  # Drop stray invisible characters (byte-order marks, line breaks) picked up when a secret was pasted or piped.
+  if ($v) { $v = $v -replace '[^\x20-\x7E]', '' }
   if ([string]::IsNullOrWhiteSpace($v)) { return $null }
   return $v.Trim()
 }
