@@ -1,0 +1,5 @@
+# Secrets and raw API pulls never go to GitHub
+.env
+raw/
+# Data files are built fresh by the Monday job, not committed
+site/data/*.json

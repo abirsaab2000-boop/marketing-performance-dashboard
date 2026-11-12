@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Marketing Performance Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one centered column, sections in reading order volume > pipeline > conversion > revenue */
+:root {
+  color-scheme: light;
+  --bg: #f6f6f3; --panel: #fdfdfc; --fg: #16161a; --fg-muted: #64636b; --border: #e2e1dc;
+  --grid: #e9e8e3; --axis: #c3c2b7; --popover: #ffffff; --shadow: 0 6px 24px rgba(20, 20, 30, .12);
+  --ok: #0f6d2e; --bad: #b42424; --warn: #a15c00; --pressed-bg: #16161a; --pressed-fg: #ffffff;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --font-sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111112; --panel: #1a1a19; --fg: #f4f4f2; --fg-muted: #a3a29b; --border: #2e2e2c;
+    --grid: #2a2a28; --axis: #3d3d3a; --popover: #232322; --shadow: 0 6px 24px rgba(0, 0, 0, .5);
+    --ok: #3cc35f; --bad: #f07272; --warn: #f0b44a; --pressed-bg: #f4f4f2; --pressed-fg: #111112;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111112; --panel: #1a1a19; --fg: #f4f4f2; --fg-muted: #a3a29b; --border: #2e2e2c;
+  --grid: #2a2a28; --axis: #3d3d3a; --popover: #232322; --shadow: 0 6px 24px rgba(0, 0, 0, .5);
+  --ok: #3cc35f; --bad: #f07272; --warn: #f0b44a; --pressed-bg: #f4f4f2; --pressed-fg: #111112;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 15px; line-height: 1.45; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.mp { display: flex; flex-direction: column; gap: 28px; max-width: 76rem; margin-inline: auto; padding: 32px 16px 48px; }
+@media (min-width: 48rem) { .mp { padding-inline: 32px; } }
+.mp-head { display: flex; flex-direction: column; gap: 10px; }
+.mp-eyebrow { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 13px; color: var(--fg-muted); }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(30px, 5vw, 42px); line-height: 1.1; text-wrap: balance; }
+.mp-lede { margin: 0; max-width: 68ch; }
+.mp-lede b { font-weight: 600; }
+.mp-period { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 4px; }
+.mp-period-label { font-size: 13px; color: var(--fg-muted); }
+.mp-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.mp-seg button { font: inherit; color: var(--fg); background: var(--panel); border: 0; border-right: 1px solid var(--border); padding: 6px 14px; cursor: pointer; }
+.mp-seg button:last-child { border-right: 0; }
+.mp-seg button:hover { background: var(--grid); }
+.mp-seg button[aria-pressed="true"] { background: var(--pressed-bg); color: var(--pressed-fg); }
+.mp-seg button:focus-visible { outline: 2px solid var(--s1); outline-offset: -3px; }
+.mp-range { font-size: 13px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.mp-section { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 16px; }
+h2 { margin: 0; font-size: 19px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; }
+.mp-step { font-size: 13px; color: var(--fg-muted); font-weight: 500; font-variant-numeric: tabular-nums; }
+.mp-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 30rem) { .mp-card { padding: 16px 14px; } }
+h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.mp-note { margin: 0; font-size: 13px; color: var(--fg-muted); max-width: 80ch; }
+.mp-chart { position: relative; min-height: 120px; }
+.mp-empty { padding-block: 24px; color: var(--fg-muted); }
+.mp-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--fg-muted); }
+.mp-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mp-legend b { color: var(--fg); font-weight: 600; }
+.mp-legend-group { display: inline-flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.mp-sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+svg text { font-family: var(--font-sans); }
+.mp-name { font-size: 14px; fill: var(--fg); }
+.mp-paid { font-size: 12px; fill: var(--fg-muted); }
+.mp-val { font-size: 14px; fill: var(--fg); font-variant-numeric: tabular-nums; }
+.mp-val-sub { fill: var(--fg-muted); }
+.mp-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--popover); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 10px; font-size: 13px; min-width: 10rem; white-space: nowrap; }
+.mp-tip-h { color: var(--fg-muted); margin-bottom: 2px; }
+.mp-tip-r { display: flex; align-items: center; gap: 6px; }
+.mp-tip-r i { width: 8px; height: 8px; border-radius: 2px; }
+.mp-tip-r b { margin-left: auto; padding-left: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mp-failed { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 120px; color: var(--fg-muted); }
+.mp-failed i { width: 6px; height: 6px; border-radius: 50%; background: var(--bad); }
+.mp-loading { min-height: 120px; border-radius: 8px; background: linear-gradient(90deg, var(--grid), var(--panel), var(--grid)); background-size: 200% 100%; }
+@media (prefers-reduced-motion: no-preference) { .mp-loading { animation: shimmer 1.4s linear infinite; } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.mp-table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; vertical-align: bottom; font-size: 13px; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+th small { display: block; font-weight: 400; color: var(--fg-muted); }
+td { padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th.num, td.num { text-align: right; }
+td small { color: var(--fg-muted); font-size: 12px; }
+.mp-tag { font-size: 12px; color: var(--fg-muted); margin-left: 6px; font-weight: 400; }
+.mp-rate { display: flex; flex-direction: column; gap: 3px; min-width: 6.5rem; }
+.mp-rate-top { display: flex; justify-content: space-between; gap: 8px; }
+.mp-rate-track { height: 6px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.mp-rate-fill { height: 100%; border-radius: 3px; background: var(--s1); }
+.mp-funnels { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 12px; }
+.mp-mf { position: relative; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mp-mf-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.mp-mf-name { font-weight: 600; }
+.mp-mf-n { font-size: 13px; color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mp-mf-chart { min-height: 172px; }
+.mp-mf-step { font-size: 12px; fill: var(--fg-muted); }
+.mp-mf-count { font-size: 12px; fill: var(--fg); font-variant-numeric: tabular-nums; }
+.mp-mf-rate { font-size: 12px; fill: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; padding-block: 4px; }
+details summary:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.mp-hidden-sources summary { font-size: 13px; color: var(--fg-muted); }
+.mp-hidden-sources p { margin: 6px 0 0; font-size: 13px; color: var(--fg-muted); }
+.mp-defs { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 13px; color: var(--fg-muted); }
+.mp-defs dt { color: var(--fg); font-weight: 600; }
+.mp-defs dd { margin: 0; }
+@media (max-width: 34rem) { .mp-defs { grid-template-columns: 1fr; } .mp-defs dd { margin-bottom: 6px; } }
+.mp-callout { margin: 0; max-width: 72ch; font-size: 13px; color: var(--fg-muted); border-left: 3px solid var(--warn); padding-left: 10px; }
+.mp-checks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.mp-checks li { display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 3px solid var(--warn); max-width: 90ch; }
+.mp-checks li span { font-size: 13px; color: var(--fg-muted); }
+.mp-foot { font-size: 13px; color: var(--fg-muted); border-top: 1px solid var(--border); padding-top: 16px; display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; }
+.mp-error { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: var(--radius); padding: 14px 16px; }
+</style>
+</head>
+<body>
+<main class="mp">
+  <header class="mp-head" id="summary">
+    <div class="mp-eyebrow"><span>GoHighLevel</span><span>·</span><span id="pipeline-name">Sales Pipeline</span><span>·</span><span>Updated <span id="updated">…</span></span></div>
+    <h1>Marketing Performance Dashboard</h1>
+    <p class="mp-lede">Every number on this page is split by lead source, so you can compare one source against another at each step: how many leads it brings, how far its deals get, how often they convert, and how much revenue it closes. Sources marked <b>paid</b> are paid ad campaigns.</p>
+    <div class="mp-period" id="period">
+      <span class="mp-period-label">Showing</span>
+      <div class="mp-seg" role="group" aria-label="Time period"></div>
+      <span class="mp-range"></span>
+    </div>
+  </header>
+
+  <div id="load-error" class="mp-error" hidden></div>
+
+  <section class="mp-section" id="volume">
+    <h2><span class="mp-step">1</span>Lead volume</h2>
+    <div class="mp-card">
+      <h3>New leads by source</h3>
+      <p class="mp-note">Contacts added to GoHighLevel in this period, grouped by their Source field. Highest first. Hover a bar for the count.</p>
+      <div class="mp-chart" id="volume-chart"><div class="mp-loading"></div></div>
+      <details class="mp-hidden-sources" id="hidden-sources" hidden>
+        <summary></summary>
+        <p></p>
+      </details>
+    </div>
+  </section>
+
+  <section class="mp-section" id="pipeline">
+    <h2><span class="mp-step">2</span>Pipeline</h2>
+    <div class="mp-card">
+      <h3>Where each source's deals are today</h3>
+      <p class="mp-note">Each bar is one source's deals in the pipeline that were created in this period, split by the stage they sit in now. Bars show shares so sources of different sizes compare fairly. The number of deals is on the right. Hover a bar for counts.</p>
+      <div class="mp-legend" id="stage-legend"></div>
+      <div class="mp-chart" id="pipeline-chart"><div class="mp-loading"></div></div>
+    </div>
+  </section>
+
+  <section class="mp-section" id="conversion">
+    <h2><span class="mp-step">3</span>Conversion</h2>
+    <div class="mp-card">
+      <h3>Conversion funnel for each source</h3>
+      <p class="mp-note">One funnel per source, all drawn on the same scale. The top band is all of that source's deals, and each band below is how many reached the next step. The percentage between two bands is the conversion rate for that step. Sources are in the same order as in Lead volume. Hover a band or a rate for the counts.</p>
+      <div class="mp-funnels" id="conversion-funnels"><div class="mp-loading"></div></div>
+      <details id="conversion-table-toggle">
+        <summary>See the same rates as a table</summary>
+        <div class="mp-table-wrap">
+          <table id="conversion-table">
+            <thead><tr>
+              <th>Source</th>
+              <th class="num">Deals<small>in pipeline</small></th>
+              <th>Passed qualification<small>of all deals</small></th>
+              <th>Booked a call<small>of qualified deals</small></th>
+              <th>Showed up to the call<small>of calls that were due</small></th>
+              <th>Became a client<small>of calls attended</small></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+      <dl class="mp-defs">
+        <dt>Passed qualification</dt><dd>Every deal except those in Disqualified.</dd>
+        <dt>Booked a call</dt><dd>Deals in Booked call, No Show, Cancelled, Follow Up, Closed or Lost.</dd>
+        <dt>Showed up to the call</dt><dd>Follow Up, Closed or Lost, out of every booked deal except those whose call is still upcoming (Booked call).</dd>
+        <dt>Became a client</dt><dd>Deals in Closed, out of deals that showed up to the call.</dd>
+      </dl>
+      <p class="mp-note">The pipeline stages are outcomes rather than steps in a line, so each step is worked out from the stage a deal sits in today.</p>
+    </div>
+  </section>
+
+  <section class="mp-section" id="revenue">
+    <h2><span class="mp-step">4</span>Closed revenue</h2>
+    <div class="mp-card">
+      <h3>Closed revenue by source</h3>
+      <p class="mp-note">Total value of deals in the Closed stage, created in this period. Highest first, with the number of new clients beside each. Deals with an unusually high value are held back until confirmed.</p>
+      <div class="mp-chart" id="revenue-chart"><div class="mp-loading"></div></div>
+      <p class="mp-callout" id="data-check" hidden></p>
+    </div>
+  </section>
+
+  <section class="mp-section" id="side-by-side">
+    <h2>Every source side by side</h2>
+    <div class="mp-card">
+      <p class="mp-note">The same figures as above in one table, ordered by closed revenue.</p>
+      <div class="mp-table-wrap">
+        <table id="scorecard-table">
+          <thead><tr>
+            <th>Source</th>
+            <th class="num">New leads</th>
+            <th class="num">Deals in pipeline</th>
+            <th class="num">Booked a call</th>
+            <th class="num">New clients</th>
+            <th class="num">Closed revenue</th>
+            <th class="num">Revenue per lead</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="mp-section" id="needs-checking">
+    <h2>Needs checking in GoHighLevel</h2>
+    <div class="mp-card">
+      <p class="mp-note">Data problems found in this week's pull, across all of the pipeline's history. Fixing them in GoHighLevel makes next Monday's numbers more accurate.</p>
+      <ul class="mp-checks" id="checks-list"></ul>
+    </div>
+  </section>
+
+  <footer class="mp-foot">
+    <span>Data from GoHighLevel, refreshed every Monday morning.</span>
+    <span>No names or contact details are stored on this page.</span>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+(() => {
+  // Sources that are paid ad campaigns. Edit this list to change the "paid" tags.
+  const PAID_SOURCES = ['Facebook Ad', 'Instagram Ad', 'Google Search', 'Billboard'];
+  // Stage groups for the pipeline chart, in display order.
+  const STAGE_GROUPS = [
+    { label: 'Still in progress', stages: ['Qualified Opt In', 'Booked call', 'Follow Up'] },
+    { label: 'Won', stages: ['Closed'] },
+    { label: 'Dropped out', stages: ['No Show', 'Cancelled', 'Lost', 'Disqualified'] },
+  ];
+  const COLORS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'].map((v) => `var(${v})`);
+  const PERIODS = ['last_week', 'last_4_weeks', 'all'];
+
+  const money = d3.format('$,.0f');
+  const int = d3.format(',');
+  const dayY = d3.utcFormat('%b %-d, %Y');
+  const pctTxt = (v) => (v == null ? '—' : Math.round(v) + '%');
+  const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : null);
+  const inRange = (d, p) => d >= p.from && d <= p.to;
+
+  // ---------- Calculations (same definitions as the Claude dashboard) ----------
+  function compute({ report, leads_daily, deals, stages, checks }) {
+    const r = report[0];
+    const periods = [
+      { period: 'last_week', label: 'Last week', from: r.last_week_start, to: r.last_week_end },
+      { period: 'last_4_weeks', label: 'Last 4 weeks', from: r.four_weeks_start, to: r.last_week_end },
+      { period: 'all', label: r.paid_start_known ? 'Since paid ads started' : 'Last 13 weeks', from: r.all_start, to: r.generated_at.slice(0, 10) },
+    ];
+
+    const by = {};
+    const get = (s) => (by[s] = by[s] || { source: s, paid: PAID_SOURCES.includes(s), leads: 0, deals: 0 });
+    leads_daily.forEach((x) => { get(x.source).leads += Number(x.leads); });
+    deals.forEach((x) => { get(x.source).deals += 1; });
+    const sources = Object.values(by).map((x) => ({ ...x, shown: x.deals > 0 && x.leads >= 3 })).sort((a, b) => b.leads - a.leads);
+    const shown = sources.filter((s) => s.shown);
+
+    const booked = ['Booked call', 'No Show', 'Cancelled', 'Follow Up', 'Closed', 'Lost'];
+    const due = ['No Show', 'Cancelled', 'Follow Up', 'Closed', 'Lost'];
+    const attended = ['Follow Up', 'Closed', 'Lost'];
+
+    const out = {};
+    periods.forEach((p) => {
+      const rows = shown.map((s) => {
+        const leads = leads_daily.filter((x) => x.source === s.source && inRange(x.day, p)).reduce((n, x) => n + Number(x.leads), 0);
+        const mine = deals.filter((d) => d.source === s.source && inRange(d.created_day, p));
+        const count = (list) => mine.filter((d) => list.includes(d.stage)).length;
+        const n = mine.length;
+        const q = n - count(['Disqualified']);
+        const b = count(booked), c = count(due), a = count(attended);
+        const won = mine.filter((d) => d.stage === 'Closed');
+        // Deals with an unusually high value still count as clients, but stay out of revenue until confirmed.
+        const counted = won.filter((d) => d.value_check !== 'unusually_high');
+        const held = won.filter((d) => d.value_check === 'unusually_high');
+        const revenue = counted.reduce((t, d) => t + Number(d.value), 0);
+        return {
+          source: s.source, paid: s.paid, leads, deals: n,
+          stageCounts: Object.fromEntries(stages.map((st) => [st.stage, count([st.stage])])),
+          qualified: q, booked: b, calls_due: c, attended: a, won: won.length,
+          qualified_rate: pct(q, n), booked_rate: pct(b, q), attended_rate: pct(a, c), won_rate: pct(won.length, a),
+          clients: won.length, revenue, avg_deal: counted.length ? Math.round(revenue / counted.length) : 0,
+          held_count: held.length, held_value: held.reduce((t, d) => t + Number(d.value), 0),
+          revenue_per_lead: leads ? Math.round(revenue / leads) : null,
+        };
+      });
+      out[p.period] = rows;
+    });
+
+    return { report: r, periods, sources, byPeriod: out, stages: stages.map((s) => s.stage), checks };
+  }
+
+  // ---------- Small helpers ----------
+  const $ = (sel) => document.querySelector(sel);
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const emptyMsg = (box, text) => { box.replaceChildren(el('div', 'mp-empty', text)); };
+
+  const tipFor = (box) => {
+    const t = el('div', 'mp-tip'); t.hidden = true; box.append(t);
+    return {
+      show(ev, title, lines) {
+        t.replaceChildren(el('div', 'mp-tip-h', title));
+        lines.forEach((l) => {
+          const r = el('div', 'mp-tip-r');
+          if (l.color) { const s = el('i'); s.style.background = l.color; r.append(s); }
+          r.append(el('span', null, l.name), el('b', null, l.value));
+          t.append(r);
+        });
+        t.hidden = false;
+        const bb = box.getBoundingClientRect();
+        let x = ev.clientX - bb.left + 14, y = ev.clientY - bb.top + 14;
+        if (x + t.offsetWidth > bb.width) x = ev.clientX - bb.left - t.offsetWidth - 14;
+        if (y + t.offsetHeight > bb.height) y = ev.clientY - bb.top - t.offsetHeight - 14;
+        t.style.left = Math.max(0, x) + 'px'; t.style.top = Math.max(0, y) + 'px';
+      },
+      hide() { t.hidden = true; },
+    };
+  };
+
+  const widest = (svg, strs, cls) => {
+    const g = svg.append('g'); let m = 0;
+    strs.forEach((s) => { m = Math.max(m, g.append('text').attr('class', cls).text(s).node().getComputedTextLength()); });
+    g.remove(); return m;
+  };
+
+  const sourceLabel = (g, x, y, r) => {
+    const t = g.append('text').attr('x', x).attr('y', y).attr('dy', '0.35em');
+    t.append('tspan').attr('class', 'mp-name').text(r.source);
+    if (r.paid) t.append('tspan').attr('class', 'mp-paid').text('  paid');
+  };
+
+  function hbars(box, items, valueText, tipLines) {
+    box.replaceChildren();
+    const rowH = 34, barH = 18;
+    const w = box.clientWidth, h = items.length * rowH;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${w} ${h}`).attr('height', h);
+    const lw = widest(svg, items.map((r) => r.source + (r.paid ? '  paid' : '')), 'mp-name') + 16;
+    const vw = widest(svg, items.map(valueText), 'mp-val') + 10;
+    const x = d3.scaleLinear([0, d3.max(items, (r) => r.v) || 1], [0, Math.max(10, w - lw - vw)]);
+    const tip = tipFor(box);
+    items.forEach((r, i) => {
+      const y = i * rowH, g = svg.append('g');
+      sourceLabel(g, 0, y + rowH / 2, r);
+      const bw = r.v > 0 ? Math.max(3, x(r.v)) : 0;
+      if (bw) g.append('rect').attr('x', lw).attr('y', y + (rowH - barH) / 2).attr('width', bw).attr('height', barH).attr('rx', 4).style('fill', COLORS[0]);
+      g.append('text').attr('class', 'mp-val').attr('x', lw + bw + 8).attr('y', y + rowH / 2).attr('dy', '0.35em').text(valueText(r));
+      g.append('rect').attr('x', 0).attr('y', y).attr('width', w).attr('height', rowH).style('fill', 'transparent')
+        .on('mousemove', (ev) => tip.show(ev, r.source + (r.paid ? ' (paid)' : ''), tipLines(r)))
+        .on('mouseleave', () => tip.hide());
+    });
+  }
+
+  // ---------- State ----------
+  let model = null;
+  let period = PERIODS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'all';
+  const rows = () => model.byPeriod[period];
+  const sourceOrder = () => rows().slice().sort((a, b) => b.leads - a.leads || a.source.localeCompare(b.source)).map((r) => r.source);
+  const stageOrder = () => {
+    const known = STAGE_GROUPS.flatMap((g) => g.stages).filter((s) => model.stages.includes(s));
+    return known.concat(model.stages.filter((s) => !known.includes(s)));
+  };
+  const stageColor = (s) => COLORS[stageOrder().indexOf(s) % COLORS.length];
+
+  // ---------- Sections ----------
+  function drawHeader() {
+    $('#updated').textContent = dayY(new Date(model.report.generated_at));
+    $('#pipeline-name').textContent = model.report.pipeline;
+    const seg = $('.mp-seg'); seg.replaceChildren();
+    model.periods.forEach((p) => {
+      const b = el('button', null, p.label); b.type = 'button';
+      b.setAttribute('aria-pressed', String(p.period === period));
+      b.addEventListener('click', () => { period = p.period; history.replaceState(null, '', '#' + p.period); render(); });
+      seg.append(b);
+    });
+    const p = model.periods.find((x) => x.period === period);
+    $('.mp-range').textContent = dayY(new Date(p.from)) + ' to ' + dayY(new Date(p.to));
+  }
+
+  function drawVolume() {
+    const box = $('#volume-chart');
+    const items = rows().map((r) => ({ ...r, v: r.leads })).sort((a, b) => b.v - a.v || a.source.localeCompare(b.source));
+    if (!items.some((r) => r.v > 0)) return emptyMsg(box, 'No new leads came in during this period.');
+    hbars(box, items, (r) => int(r.v), (r) => [{ name: 'New leads', value: int(r.v) }]);
+  }
+
+  function drawHidden() {
+    const hidden = model.sources.filter((r) => !r.shown);
+    const d = $('#hidden-sources');
+    d.hidden = !hidden.length;
+    if (!hidden.length) return;
+    d.querySelector('summary').textContent = hidden.length + (hidden.length === 1 ? ' source' : ' sources') + ' left out of these charts';
+    d.querySelector('p').textContent = 'These have no deals in the pipeline, or fewer than 3 leads in total: ' +
+      hidden.map((r) => r.source + ' (' + int(r.leads) + (r.leads === 1 ? ' lead' : ' leads') + ')').join(', ') + '.';
+  }
+
+  function drawLegend() {
+    const box = $('#stage-legend'); box.replaceChildren();
+    const order = stageOrder();
+    const groups = STAGE_GROUPS.map((g) => ({ label: g.label, stages: g.stages.filter((s) => order.includes(s)) }));
+    const extra = order.filter((s) => !STAGE_GROUPS.some((g) => g.stages.includes(s)));
+    if (extra.length) groups.push({ label: 'Other', stages: extra });
+    groups.forEach((g) => {
+      const wrap = el('span', 'mp-legend-group');
+      wrap.append(el('b', null, g.label + ':'));
+      g.stages.forEach((s) => { const sp = el('span'); const sw = el('i', 'mp-sw'); sw.style.background = stageColor(s); sp.append(sw, s); wrap.append(sp); });
+      box.append(wrap);
+    });
+  }
+
+  function drawPipeline() {
+    const box = $('#pipeline-chart'); box.replaceChildren();
+    const order = stageOrder();
+    const byName = Object.fromEntries(rows().map((r) => [r.source, r]));
+    const items = sourceOrder().map((s) => byName[s]);
+    if (!items.some((r) => r.deals > 0)) return emptyMsg(box, 'No deals were created in this period.');
+    const rowH = 34, barH = 20;
+    const w = box.clientWidth, h = items.length * rowH;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${w} ${h}`).attr('height', h);
+    const lw = widest(svg, items.map((r) => r.source + (r.paid ? '  paid' : '')), 'mp-name') + 16;
+    const valTxt = (r) => (r.deals ? int(r.deals) + (r.deals === 1 ? ' deal' : ' deals') : 'No deals');
+    const vw = widest(svg, items.map(valTxt), 'mp-val') + 12;
+    const x = d3.scaleLinear([0, 100], [lw, Math.max(lw + 20, w - vw)]);
+    const tip = tipFor(box);
+    items.forEach((r, i) => {
+      const y = i * rowH, g = svg.append('g');
+      sourceLabel(g, 0, y + rowH / 2, r);
+      let acc = 0;
+      if (r.deals) order.forEach((st) => {
+        const n = r.stageCounts[st] || 0;
+        if (!n) return;
+        const share = (n / r.deals) * 100, x0 = x(acc), x1 = x(acc + share);
+        g.append('rect').attr('x', x0 + (acc > 0 ? 1 : 0)).attr('y', y + (rowH - barH) / 2).attr('width', Math.max(1, x1 - x0 - (acc > 0 ? 1 : 0))).attr('height', barH).style('fill', stageColor(st));
+        acc += share;
+      });
+      g.append('text').attr('class', 'mp-val' + (r.deals ? '' : ' mp-val-sub')).attr('x', r.deals ? x(100) + 8 : lw).attr('y', y + rowH / 2).attr('dy', '0.35em').text(valTxt(r));
+      g.append('rect').attr('x', 0).attr('y', y).attr('width', w).attr('height', rowH).style('fill', 'transparent')
+        .on('mousemove', (ev) => tip.show(ev, r.source + ' · ' + valTxt(r), order.filter((st) => r.stageCounts[st]).map((st) => ({ color: stageColor(st), name: st, value: int(r.stageCounts[st]) + '  (' + Math.round((r.stageCounts[st] / r.deals) * 100) + '%)' }))))
+        .on('mouseleave', () => tip.hide());
+    });
+  }
+
+  function drawFunnels() {
+    const box = $('#conversion-funnels'); box.replaceChildren();
+    const byName = Object.fromEntries(rows().map((r) => [r.source, r]));
+    const items = sourceOrder().map((s) => byName[s]);
+    if (!items.some((r) => r.deals > 0)) return emptyMsg(box, 'No deals were created in this period.');
+    items.forEach((r) => {
+      const card = el('div', 'mp-mf');
+      const h = el('div', 'mp-mf-h');
+      const nm = el('span', 'mp-mf-name', r.source);
+      if (r.paid) nm.append(el('span', 'mp-tag', 'paid'));
+      h.append(nm, el('span', 'mp-mf-n', r.deals ? int(r.deals) + (r.deals === 1 ? ' deal' : ' deals') : 'No deals'));
+      const chart = el('div', 'mp-mf-chart');
+      card.append(h, chart); box.append(card);
+      if (!r.deals) { chart.style.minHeight = '0'; return; }
+      const steps = [
+        { label: 'All deals', n: r.deals },
+        { label: 'Qualified', n: r.qualified, rate: r.qualified_rate, of: r.deals, ofLabel: 'of all deals' },
+        { label: 'Booked a call', n: r.booked, rate: r.booked_rate, of: r.qualified, ofLabel: 'of qualified deals' },
+        { label: 'Showed up', n: r.attended, rate: r.attended_rate, of: r.calls_due, ofLabel: 'of calls that were due' },
+        { label: 'Became a client', n: r.won, rate: r.won_rate, of: r.attended, ofLabel: 'of calls attended' },
+      ];
+      const bandH = 20, gapH = 18;
+      const w = chart.clientWidth, hh = steps.length * bandH + (steps.length - 1) * gapH;
+      const svg = d3.select(chart).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${w} ${hh}`).attr('height', hh);
+      const lw = widest(svg, steps.map((s) => s.label), 'mp-mf-step') + 10;
+      const cw = widest(svg, steps.map((s) => int(s.n)), 'mp-mf-count') + 8;
+      const full = Math.max(20, w - lw - cw), cx = lw + full / 2;
+      const half = (s) => (s.n > 0 ? Math.max(1.5, ((s.n / r.deals) * full) / 2) : 0);
+      const tip = tipFor(card);
+      const conn = svg.append('g'), bands = svg.append('g'), text = svg.append('g'), hits = svg.append('g');
+      steps.forEach((s, i) => {
+        const y = i * (bandH + gapH), hw = half(s);
+        if (hw) bands.append('rect').attr('x', cx - hw).attr('y', y).attr('width', hw * 2).attr('height', bandH).attr('rx', 3).style('fill', COLORS[0]);
+        else bands.append('line').attr('x1', cx - 6).attr('x2', cx + 6).attr('y1', y + bandH / 2).attr('y2', y + bandH / 2).style('stroke', 'var(--axis)').attr('stroke-width', 2);
+        text.append('text').attr('class', 'mp-mf-step').attr('x', 0).attr('y', y + bandH / 2).attr('dy', '0.35em').text(s.label);
+        text.append('text').attr('class', 'mp-mf-count').attr('x', w).attr('y', y + bandH / 2).attr('dy', '0.35em').attr('text-anchor', 'end').text(int(s.n));
+        hits.append('rect').attr('x', 0).attr('y', y).attr('width', w).attr('height', bandH).style('fill', 'transparent')
+          .on('mousemove', (ev) => tip.show(ev, r.source + ' · ' + s.label, [{ name: 'Deals', value: int(s.n) }, { name: 'Share of all deals', value: Math.round((s.n / r.deals) * 100) + '%' }]))
+          .on('mouseleave', () => tip.hide());
+        const next = steps[i + 1];
+        if (!next) return;
+        const yb = y + bandH, yt = yb + gapH, nw = half(next);
+        conn.append('path').attr('d', `M${cx - hw},${yb}L${cx + hw},${yb}L${cx + nw},${yt}L${cx - nw},${yt}Z`).style('fill', COLORS[0]).style('fill-opacity', 0.14);
+        text.append('text').attr('class', 'mp-mf-rate').attr('x', cx).attr('y', yb + gapH / 2).attr('dy', '0.35em').attr('text-anchor', 'middle').text(pctTxt(next.rate));
+        hits.append('rect').attr('x', 0).attr('y', yb).attr('width', w).attr('height', gapH).style('fill', 'transparent')
+          .on('mousemove', (ev) => tip.show(ev, r.source + ' · ' + next.label, [{ name: 'Conversion', value: pctTxt(next.rate) }, { name: next.ofLabel, value: next.of ? int(next.n) + ' of ' + int(next.of) : 'none yet' }]))
+          .on('mouseleave', () => tip.hide());
+      });
+    });
+  }
+
+  const td = (tr, text, cls) => { const c = el('td', cls, text); tr.append(c); return c; };
+  const sourceCell = (tr, r) => { const c = td(tr, r.source); if (r.paid) c.append(el('span', 'mp-tag', 'paid')); };
+
+  function drawConversionTable() {
+    const body = $('#conversion-table tbody'); body.replaceChildren();
+    const order = sourceOrder();
+    rows().slice().sort((a, b) => order.indexOf(a.source) - order.indexOf(b.source)).forEach((r) => {
+      const tr = el('tr');
+      sourceCell(tr, r);
+      td(tr, int(r.deals), 'num');
+      [['qualified_rate', 'qualified', 'deals'], ['booked_rate', 'booked', 'qualified'], ['attended_rate', 'attended', 'calls_due'], ['won_rate', 'won', 'attended']].forEach(([f, num, den]) => {
+        const c = td(tr, null);
+        const boxEl = el('div', 'mp-rate');
+        const top = el('div', 'mp-rate-top');
+        top.append(el('span', null, pctTxt(r[f])), el('small', null, r[den] ? int(r[num]) + ' of ' + int(r[den]) : 'none yet'));
+        const track = el('div', 'mp-rate-track'); const fill = el('div', 'mp-rate-fill'); fill.style.width = (r[f] || 0) + '%';
+        track.append(fill); boxEl.append(top, track); c.append(boxEl);
+      });
+      body.append(tr);
+    });
+  }
+
+  function drawRevenue() {
+    const box = $('#revenue-chart');
+    const items = rows().map((r) => ({ ...r, v: r.revenue })).sort((a, b) => b.v - a.v || a.source.localeCompare(b.source));
+    if (!items.some((r) => r.v > 0)) return emptyMsg(box, 'No deals created in this period have closed yet.');
+    hbars(box, items, (r) => money(r.v) + (r.clients ? '  ·  ' + r.clients + (r.clients === 1 ? ' client' : ' clients') : '') + (r.held_count ? '  ·  ' + r.held_count + ' held back' : ''),
+      (r) => {
+        const lines = [{ name: 'Closed revenue', value: money(r.revenue) }, { name: 'New clients', value: int(r.clients) }, { name: 'Average deal', value: r.clients - r.held_count ? money(r.avg_deal) : '—' }];
+        if (r.held_count) lines.push({ name: 'Held back for checking', value: money(r.held_value) });
+        return lines;
+      });
+    const held = rows().reduce((n, r) => n + r.held_count, 0), note = $('#data-check');
+    note.hidden = !held;
+    if (held) note.textContent = held + (held === 1 ? ' closed deal has' : ' closed deals have') + ' an unusually high value and ' + (held === 1 ? 'is' : 'are') + ' held back from revenue until someone confirms ' + (held === 1 ? 'it' : 'them') + '. See "Needs checking" below.';
+  }
+
+  function drawChecks() {
+    const c = model.checks, list = $('#checks-list');
+    list.replaceChildren();
+    const add = (title, detail) => { const li = el('li'); li.append(el('b', null, title), el('span', null, detail)); list.append(li); };
+    const dealLine = (d) => money(d.value) + ' · ' + d.source + ' · ' + d.stage;
+    if (c.high_value_deals.length) add(c.high_value_deals.length + (c.high_value_deals.length === 1 ? ' deal has' : ' deals have') + ' an unusually high value',
+      'More than 10 times the typical deal (' + money(c.median_value) + '). Counted as deals and clients, but left out of revenue until confirmed: ' + c.high_value_deals.map(dealLine).join('; ') + '.');
+    if (c.won_not_closed.length) add(c.won_not_closed.length + (c.won_not_closed.length === 1 ? ' deal is' : ' deals are') + ' marked Won but not in the Closed stage',
+      'Not counted as revenue: ' + c.won_not_closed.map(dealLine).join('; ') + '. Move them to Closed, or correct their status.');
+    if (c.no_value_deals) add(c.no_value_deals + (c.no_value_deals === 1 ? ' deal has' : ' deals have') + ' no value entered',
+      (c.no_value_closed ? c.no_value_closed + ' of them ' + (c.no_value_closed === 1 ? 'is a client' : 'are clients') + ', counted with $0 revenue. ' : '') + 'Add the deal value in GoHighLevel.');
+    if (c.missing_source_contacts || c.missing_source_deals) add('Some leads have no source',
+      c.missing_source_contacts + (c.missing_source_contacts === 1 ? ' contact' : ' contacts') + ' and ' + c.missing_source_deals + (c.missing_source_deals === 1 ? ' deal' : ' deals') + ' have an empty Source field. They show as "No source recorded" so the gap stays visible.');
+    if (c.same_name_groups) add(c.same_name_contacts + ' contacts share a name with another contact',
+      c.same_name_groups + (c.same_name_groups === 1 ? ' name appears' : ' names appear') + ' more than once with different emails and phone numbers. They are counted separately because nothing else matches. Check whether they are the same person.');
+    add(c.duplicates_merged ? c.duplicates_merged + (c.duplicates_merged === 1 ? ' duplicate contact was' : ' duplicate contacts were') + ' merged' : 'No duplicate contacts found',
+      'Contacts that share an email or phone number count as one lead, credited to the earliest contact\'s source.');
+  }
+
+  function drawScorecard() {
+    const body = $('#scorecard-table tbody'); body.replaceChildren();
+    rows().slice().sort((a, b) => b.revenue - a.revenue || b.leads - a.leads).forEach((r) => {
+      const tr = el('tr');
+      sourceCell(tr, r);
+      td(tr, int(r.leads), 'num'); td(tr, int(r.deals), 'num'); td(tr, pctTxt(r.booked_rate), 'num');
+      td(tr, int(r.clients), 'num'); td(tr, money(r.revenue), 'num'); td(tr, r.revenue_per_lead == null ? '—' : money(r.revenue_per_lead), 'num');
+      body.append(tr);
+    });
+  }
+
+  function render() {
+    if (!model) return;
+    drawHeader(); drawVolume(); drawHidden(); drawLegend(); drawPipeline(); drawFunnels(); drawConversionTable(); drawRevenue(); drawScorecard(); drawChecks();
+  }
+
+  // ---------- Load ----------
+  const load = (name) => fetch('data/' + name + '.json', { cache: 'no-cache' }).then((r) => {
+    if (!r.ok) throw new Error(name + '.json: HTTP ' + r.status);
+    return r.json();
+  });
+  const asRows = (x) => (Array.isArray(x) ? x : [x]);
+
+  Promise.all(['report', 'leads_daily', 'deals', 'stages', 'checks'].map(load))
+    .then(([report, leads_daily, deals, stages, checks]) => {
+      model = compute({ report: asRows(report), leads_daily: asRows(leads_daily), deals: asRows(deals), stages: asRows(stages), checks });
+      render();
+    })
+    .catch((err) => {
+      const box = $('#load-error');
+      box.hidden = false;
+      box.textContent = 'The dashboard data could not be loaded (' + err.message + '). Try reloading the page in a minute.';
+      document.querySelectorAll('.mp-loading').forEach((n) => n.remove());
+    });
+
+  let t;
+  let lastW = window.innerWidth;
+  window.addEventListener('resize', () => {
+    if (window.innerWidth === lastW) return;
+    lastW = window.innerWidth;
+    clearTimeout(t); t = setTimeout(render, 150);
+  });
+})();
+</script>
+</body>
+</html>
